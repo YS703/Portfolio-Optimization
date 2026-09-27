@@ -1,0 +1,22 @@
+# Configuration file for the portfolio management project
+
+# Assets and data settings :
+tickers_list: [CW8.PA,
+               SPY,
+               AAPL,
+               MSFT,
+               AMZN,
+               GOOGL,]
+column: Close
+start_date: "2024-01-01"
+end_date: "2024-12-31"
+interval: "1d"
+
+# Portfolio settings :
+monthly_deposit: 200
+
+# Simulation parameters :
+correlation_threshold: 0.95
+n_simulations: 10000
+target_return: 0.05
+n_best_portfolios: 5

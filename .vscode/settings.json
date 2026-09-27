@@ -1,0 +1,6 @@
+{
+  "code-runner.cwd": "$workspaceRoot",
+  "code-runner.executorMap": {
+    "python": "\"$workspaceRoot\\.venv\\Scripts\\python.exe\" -u"
+  }
+}
