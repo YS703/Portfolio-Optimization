@@ -4,7 +4,11 @@ from src.Data.load_config import load_config
 from src.Data.market_data import load_data
 from src.Optimization.correlation import get_correlation_matrix, get_uncorrelated_assets  
 from src.Optimization.monte_carlo import simulate_random_weights
-from src.Analytics.reporting import generate_best_portfolios_pdf, generate_markowitz_pdf
+from src.Analytics.reporting import (
+    generate_best_portfolios_pdf,
+    generate_correlation_pdf,
+    generate_markowitz_pdf,
+)
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,7 +42,7 @@ def main():
         logger.info("3 - Identifying uncorrelated assets...")
         threshold = config["correlation_threshold"]
         correlation_matrix = get_correlation_matrix(data)
-        uncorrelated_assets = get_uncorrelated_assets(correlation_matrix, threshold)
+        uncorrelated_assets_data = get_uncorrelated_assets(data, correlation_matrix, threshold)
     except Exception as e:
         logger.error(f"Fatal error during correlation analysis : {e}")
         return
@@ -47,7 +51,7 @@ def main():
     try:
         logger.info("4 - Simulating random portfolio weights...")
         MC_weights = simulate_random_weights(
-            data,
+            uncorrelated_assets_data,
             monthly_deposit=config["monthly_deposit"],
             n_portfolios=config["n_simulations"],
             periods_per_year=12,
@@ -64,12 +68,16 @@ def main():
     # 5. Displaying results
     try:
         logger.info("5 - Displaying results...")
+        correlation_report_path = generate_correlation_pdf(correlation_matrix)
         report_path = generate_markowitz_pdf(MC_weights, best_portfolios)
         weights_report_path = generate_best_portfolios_pdf(best_portfolios)
     except Exception as e:
         logger.error(f"Fatal error during result display : {e}")
         return
 
-    logger.info(f"Reports generated successfully: {report_path}, {weights_report_path}")
+    logger.info(
+        f"Reports generated successfully: {correlation_report_path}, "
+        f"{report_path}, {weights_report_path}"
+    )
 
 main()

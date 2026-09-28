@@ -16,7 +16,7 @@ interval: "1d"
 monthly_deposit: 200
 
 # Simulation parameters :
-correlation_threshold: 0.95
+correlation_threshold: 0.80
 n_simulations: 10000
 target_return: 0.05
 n_best_portfolios: 5

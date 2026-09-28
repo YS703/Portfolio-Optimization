@@ -5,6 +5,58 @@ import numpy as np
 import polars as pl
 
 
+def generate_correlation_pdf(
+	correlation_matrix: pl.DataFrame,
+	output_path: str | Path = "correlation_matrix.pdf",
+) -> Path:
+	"""Save a labeled heatmap of the asset correlation matrix as a PDF."""
+	if "ticker" not in correlation_matrix.columns:
+		raise ValueError("correlation_matrix must contain a 'ticker' label column.")
+	asset_names = [name for name in correlation_matrix.columns if name != "ticker"]
+	if not asset_names or correlation_matrix.is_empty():
+		raise ValueError("correlation_matrix must contain at least one asset.")
+	if correlation_matrix.height != len(asset_names):
+		raise ValueError("correlation_matrix must have one row per asset.")
+	if not set(correlation_matrix["ticker"].to_list()).issuperset(asset_names):
+		raise ValueError("correlation_matrix ticker labels must match its asset columns.")
+
+	values = correlation_matrix.select(asset_names).cast(pl.Float64, strict=True).to_numpy()
+	finite_values = values[np.isfinite(values)]
+	if np.isinf(values).any():
+		raise ValueError("correlation_matrix values cannot be infinite.")
+	if ((finite_values < -1.0) | (finite_values > 1.0)).any():
+		raise ValueError("correlation_matrix values must be between -1 and 1.")
+
+	row_order = {name: index for index, name in enumerate(correlation_matrix["ticker"].to_list())}
+	values = values[[row_order[name] for name in asset_names], :]
+	output_file = Path(output_path)
+	output_file.parent.mkdir(parents=True, exist_ok=True)
+	figure_size = max(6.0, len(asset_names) * 0.75)
+	figure, axis = plt.subplots(figsize=(figure_size, figure_size), constrained_layout=True)
+	color_map = plt.get_cmap("coolwarm").copy()
+	color_map.set_bad("#d9d9d9")
+	image = axis.imshow(np.ma.masked_invalid(values), cmap=color_map, vmin=-1.0, vmax=1.0)
+	axis.set_xticks(np.arange(len(asset_names)), asset_names, rotation=45, ha="right")
+	axis.set_yticks(np.arange(len(asset_names)), asset_names)
+	axis.set_title("Asset Correlation Matrix")
+	for row_index in range(len(asset_names)):
+		for column_index in range(len(asset_names)):
+			cell_value = values[row_index, column_index]
+			axis.text(
+				column_index,
+				row_index,
+				f"{cell_value:.2f}" if np.isfinite(cell_value) else "N/A",
+				ha="center",
+				va="center",
+				color="black",
+				fontsize=8,
+			)
+	figure.colorbar(image, ax=axis, label="Pearson correlation", shrink=0.8)
+	figure.savefig(output_file, format="pdf", bbox_inches="tight")
+	plt.close(figure)
+	return output_file
+
+
 def generate_markowitz_pdf(
 	MC_weights: pl.DataFrame,
 	best_portfolios: pl.DataFrame,

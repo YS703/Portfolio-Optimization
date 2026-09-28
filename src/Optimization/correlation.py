@@ -41,23 +41,34 @@ def get_correlation_matrix(data: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(matrix)
 
 
-def get_uncorrelated_assets(correlation_matrix: pl.DataFrame, threshold: float) -> list[str]:
-     """
-     Identify uncorrelated assets based on a correlation matrix and a specified threshold.
+def get_uncorrelated_assets(
+    data: pl.DataFrame,
+    correlation_matrix: pl.DataFrame,
+    threshold: float,
+) -> pl.DataFrame:
+    """
+    Return the date and price columns for a diversified subset of assets 
+    by sequentially dropping highly correlated pairs.
+    """
+    ticker_names = [name for name in correlation_matrix.columns if name != "ticker"]
+    
+    corr_array = correlation_matrix.select(ticker_names).to_numpy()
+    assets_to_drop = set()
+    
+    for i in range(len(ticker_names)):
+        if ticker_names[i] in assets_to_drop:
+            continue
+            
+        for j in range(i + 1, len(ticker_names)):
+            if abs(corr_array[i, j]) >= threshold:
+                assets_to_drop.add(ticker_names[j])
 
-     Parameters:
-         correlation_matrix (pl.DataFrame): A DataFrame representing the correlation matrix.
-         threshold (float): The correlation threshold below which assets are considered uncorrelated.
+    uncorrelated_assets = [name for name in ticker_names if name not in assets_to_drop]
 
-     Returns:
-         list[str]: A list of asset names that are uncorrelated with each other based on the given threshold.
-     """
-     uncorrelated_assets = []
-     ticker_names = [name for name in correlation_matrix.columns if name != "ticker"]
-     for asset in ticker_names:
-         correlations = correlation_matrix.filter(pl.col("ticker") == asset).select(
-             [name for name in ticker_names if name != asset]
-         ).row(0)
-         if all(np.isfinite(value) and abs(value) < threshold for value in correlations):
-             uncorrelated_assets.append(asset)
-     return uncorrelated_assets
+    selected_columns = [
+        name
+        for name in data.columns
+        if name.lower() == "date" or name in uncorrelated_assets
+    ]
+    
+    return data.select(selected_columns)
